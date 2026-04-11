@@ -22,7 +22,9 @@ def _upsert_publisher(sb, result: dict) -> str:
         "trending_headlines": result.get("trending_headlines", []),
         "score": result.get("score", 0),
     }
-    r = sb.table("publishers").upsert(row, on_conflict="url").select("id").execute()
+    sb.table("publishers").upsert(row, on_conflict="url").execute()
+    # Then fetch the id separately
+    r = sb.table("publishers").select("id").eq("url", result["url"]).execute()
     if not r.data:
         raise RuntimeError("publisher upsert returned no data")
     return r.data[0]["id"]
