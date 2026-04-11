@@ -1,7 +1,11 @@
 """
 Demo fixtures — pre-written JSON profiles for hackathon demo.
-Load these via: python -m app.fixtures.seed
+Load via: cd backend && PYTHONPATH=. python -m app.fixtures.seed
+
+Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
 """
+
+from app.core.database import get_supabase
 
 DUMMY_CLIENTS = [
     {
@@ -73,40 +77,26 @@ DUMMY_PUBLISHERS = [
 ]
 
 
-async def seed_db():
+def seed_db() -> None:
     """Seed the database with demo fixtures."""
-    from app.core.database import get_pool
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        # Seed publishers
-        for pub in DUMMY_PUBLISHERS:
-            await conn.execute(
-                """
-                INSERT INTO publishers (url, contact_email, ad_networks, estimated_traffic,
-                                        has_adsense, has_premium_dsp, trending_headlines, score)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-                ON CONFLICT (url) DO NOTHING
-                """,
-                pub["url"], pub["contact_email"], pub["ad_networks"],
-                pub["estimated_traffic"], pub["has_adsense"], pub["has_premium_dsp"],
-                pub["trending_headlines"], pub["score"],
-            )
-        print(f"✅ Seeded {len(DUMMY_PUBLISHERS)} publishers")
+    sb = get_supabase()
 
-        # Seed campaigns
-        for client in DUMMY_CLIENTS:
-            await conn.execute(
-                """
-                INSERT INTO campaigns (client_name, product_desc, budget, audience, seed_urls)
-                VALUES ($1,$2,$3,$4,$5)
-                ON CONFLICT DO NOTHING
-                """,
-                client["client_name"], client["product_desc"],
-                client["budget"], client["audience"], client["seed_urls"],
-            )
-        print(f"✅ Seeded {len(DUMMY_CLIENTS)} campaigns")
+    for pub in DUMMY_PUBLISHERS:
+        sb.table("publishers").upsert(pub, on_conflict="url").execute()
+    print(f"✅ Seeded {len(DUMMY_PUBLISHERS)} publishers")
+
+    for client in DUMMY_CLIENTS:
+        sb.table("campaigns").insert(
+            {
+                "client_name": client["client_name"],
+                "product_desc": client["product_desc"],
+                "budget": client["budget"],
+                "audience": client["audience"],
+                "seed_urls": client["seed_urls"],
+            }
+        ).execute()
+    print(f"✅ Seeded {len(DUMMY_CLIENTS)} campaigns")
 
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(seed_db())
+    seed_db()
