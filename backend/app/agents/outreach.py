@@ -14,6 +14,9 @@ from uuid import uuid4
 import re
 import smtplib
 from email.message import EmailMessage
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 from supabase import Client
