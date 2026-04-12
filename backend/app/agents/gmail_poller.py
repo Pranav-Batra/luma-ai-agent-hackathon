@@ -1,4 +1,5 @@
 """
+THIS IS THE PUBLISHER(I.E. NEW YORK TIMES) RESPONDING TO A AD PITCH REQUEST
 Gmail Reply Poller
 Polls Gmail inbox every 30s for replies to pitch emails.
 Matches replies to outreach_logs via subject line / In-Reply-To header.
@@ -7,6 +8,7 @@ Claude classifies intent → approved / counter / rejected
 """
 
 import os
+from datetime import timedelta
 import json
 import asyncio
 import imaplib
@@ -16,6 +18,8 @@ from email.policy import default as email_default_policy
 from datetime import datetime, timezone
 import httpx
 import re
+from app.agents.creative import run_approved_pipeline
+from app.agents.helper import extract_json
 
 import anthropic
 from supabase import Client
@@ -36,17 +40,6 @@ Respond with ONLY a JSON object, no markdown, no explanation:
   "summary": "<one sentence describing the reply>"
 }
 """
-
-
-def extract_json(text: str) -> dict:
-    if not text:
-        raise ValueError("Empty response from model")
-
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if not match:
-        raise ValueError(f"No JSON found in response: {text}")
-
-    return json.loads(match.group())
 
 
 # ── Email parsing ─────────────────────────────────────────────────────────────
@@ -88,7 +81,8 @@ def _fetch_unseen_emails(gmail_user: str, app_password: str) -> list[dict]:
             mail.login(gmail_user, app_password)
             mail.select("inbox")
 
-            _, message_ids = mail.search(None, "UNSEEN")
+            since = (datetime.now() - timedelta(days=7)).strftime("%d-%b-%Y")
+            _, message_ids = mail.search(None, f'(UNSEEN SINCE {since})')
             if not message_ids[0]:
                 return []
 
@@ -190,6 +184,7 @@ async def _classify_intent(body: str) -> dict:
             json={
                 "model": "anthropic/claude-3.5-haiku",  # or newer if available
                 "messages": [
+                    {"role": "system", "content": INTENT_SYSTEM_PROMPT},
                     {"role": "user", "content": body[:2000]},
                 ],
                 "max_tokens": 500,
@@ -229,6 +224,7 @@ async def _handle_approved(sb: Client, outreach: dict) -> None:
         f"Publisher approved the deal — generating creative now",
         {"outreach_id": outreach["id"], "offer_amount": outreach["offer_amount"]},
     )
+    await run_approved_pipeline(sb, outreach)
     # TODO: import and call creative pipeline
     # from app.agents.creative import run_creative_pipeline
     # await run_creative_pipeline(sb, outreach["id"])

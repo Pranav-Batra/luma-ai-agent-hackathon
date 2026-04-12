@@ -1,4 +1,5 @@
 """
+THIS IS OUTREACH STEP ONE -> AGENT SENDS PITCH EMAIL TO PUBLISHER ASKING FOR APPROVAL
 Outreach Agent
 Flow: campaign + publisher → Claude writes pitch email → Resend sends it
       → log to outreach_logs → log agent_event for dashboard stream
@@ -15,6 +16,7 @@ import re
 import smtplib
 from email.message import EmailMessage
 from dotenv import load_dotenv
+from app.agents.helper import extract_json
 
 load_dotenv()
 
@@ -49,15 +51,6 @@ Respond with ONLY a JSON object, no markdown:
 """
 
 
-def extract_json(text: str) -> dict:
-    if not text:
-        raise ValueError("Empty response from model")
-
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if not match:
-        raise ValueError(f"No JSON found in response: {text}")
-
-    return json.loads(match.group())
 
 async def generate_pitch(
     publisher_url: str,
@@ -210,7 +203,7 @@ async def send_outreach(
     resend_id = send_email_smtp(
         subject=pitch['subject'], 
         body=pitch['body'],
-        to_email="pokihi8550@lealking.com"
+        to_email=INBOX_EMAIL
     )
 
     # response = resend.Emails.send({
