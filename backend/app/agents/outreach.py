@@ -27,6 +27,7 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 GMAIL_USER = os.environ.get("GMAIL_USER")  # your_email@gmail.com
 GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD")  # app password
+INBOX_EMAIL="batra2006.analytics@gmail.com"
 
 PITCH_SYSTEM_PROMPT = """
 You are a direct media buyer writing cold outreach emails to website ad-ops managers.
