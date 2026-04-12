@@ -1,15 +1,27 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import asyncio
 
-from app.core.database import create_tables
 from app.api.routes import campaigns, publishers, recon, webhook
+from app.core.database import get_supabase
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await create_tables()
+    # Start Gmail reply poller in the background
+    from app.agents.gmail_poller import start_poller
+    sb = get_supabase()
+    poller_task = asyncio.create_task(start_poller(sb))
+
     yield
+
+    # Shut down poller cleanly on server stop
+    poller_task.cancel()
+    try:
+        await poller_task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(
@@ -21,7 +33,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten this in prod
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

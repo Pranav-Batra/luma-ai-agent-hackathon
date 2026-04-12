@@ -1,19 +1,53 @@
-from fastapi import APIRouter, Depends, BackgroundTasks
+import asyncio
 from uuid import UUID
-import asyncpg
 
-from app.core.database import get_db
+from fastapi import APIRouter, Depends
+from supabase import Client
+
+from app.core.database import get_supabase
 from app.models.schemas import ReconRequest, ReconResult
 from app.services.recon import run_recon
 
 router = APIRouter()
 
 
+def _upsert_publisher(sb, result: dict) -> str:
+    row = {
+        "url": result["url"],
+        "contact_email": result.get("contact_email"),
+        "ad_networks": result.get("ad_networks", []),
+        "estimated_traffic": result.get("estimated_traffic", "unknown"),
+        "has_adsense": result.get("has_adsense", False),
+        "has_premium_dsp": result.get("has_premium_dsp", False),
+        "trending_headlines": result.get("trending_headlines", []),
+        "score": result.get("score", 0),
+    }
+    sb.table("publishers").upsert(row, on_conflict="url").execute()
+    # Then fetch the id separately
+    r = sb.table("publishers").select("id").eq("url", result["url"]).execute()
+    if not r.data:
+        raise RuntimeError("publisher upsert returned no data")
+    return r.data[0]["id"]
+
+
+def _insert_recon_event(sb, campaign_id: UUID, result: dict, publisher_id: str) -> None:
+    sb.table("agent_events").insert(
+        {
+            "campaign_id": str(campaign_id),
+            "event_type": "recon",
+            "message": (
+                f"Scanned {result['url']} — score {result['score']}/7, contact: "
+                f"{result.get('contact_email') or 'not found'}"
+            ),
+            "metadata": {"publisher_id": publisher_id, "score": result["score"]},
+        }
+    ).execute()
+
+
 @router.post("/", response_model=ReconResult)
 async def recon_publisher(
     payload: ReconRequest,
-    background_tasks: BackgroundTasks,
-    db: asyncpg.Connection = Depends(get_db),
+    sb: Client = Depends(get_supabase),
 ):
     """
     Run recon on a single publisher URL.
@@ -21,43 +55,10 @@ async def recon_publisher(
     """
     result = await run_recon(payload.url)
 
-    # Upsert publisher record
-    pub_row = await db.fetchrow(
-        """
-        INSERT INTO publishers (url, contact_email, ad_networks, estimated_traffic,
-                                has_adsense, has_premium_dsp, trending_headlines, score)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (url) DO UPDATE
-            SET contact_email      = EXCLUDED.contact_email,
-                ad_networks        = EXCLUDED.ad_networks,
-                estimated_traffic  = EXCLUDED.estimated_traffic,
-                has_adsense        = EXCLUDED.has_adsense,
-                has_premium_dsp    = EXCLUDED.has_premium_dsp,
-                trending_headlines = EXCLUDED.trending_headlines,
-                score              = EXCLUDED.score
-        RETURNING id
-        """,
-        result["url"],
-        result.get("contact_email"),
-        result.get("ad_networks", []),
-        result.get("estimated_traffic", "unknown"),
-        result.get("has_adsense", False),
-        result.get("has_premium_dsp", False),
-        result.get("trending_headlines", []),
-        result.get("score", 0),
-    )
+    pub_id = await asyncio.to_thread(_upsert_publisher, sb, result)
 
-    # Log agent event if tied to a campaign
     if payload.campaign_id:
-        await db.execute(
-            """
-            INSERT INTO agent_events (campaign_id, event_type, message, metadata)
-            VALUES ($1, 'recon', $2, $3::jsonb)
-            """,
-            payload.campaign_id,
-            f"Scanned {result['url']} — score {result['score']}/7, contact: {result.get('contact_email', 'not found')}",
-            f'{{"publisher_id": "{pub_row["id"]}", "score": {result["score"]}}}',
-        )
+        await asyncio.to_thread(_insert_recon_event, sb, payload.campaign_id, result, pub_id)
 
     return ReconResult(
         url=result["url"],
@@ -75,10 +76,8 @@ async def recon_publisher(
 async def recon_bulk(
     urls: list[str],
     campaign_id: UUID | None = None,
-    db: asyncpg.Connection = Depends(get_db),
 ):
     """Run recon on multiple seed URLs and return ranked publisher list."""
-    import asyncio
     tasks = [run_recon(url) for url in urls]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -88,6 +87,5 @@ async def recon_bulk(
             continue
         publishers.append(r)
 
-    # Sort by score descending
     publishers.sort(key=lambda x: x.get("score", 0), reverse=True)
     return {"publishers": publishers, "total": len(publishers)}

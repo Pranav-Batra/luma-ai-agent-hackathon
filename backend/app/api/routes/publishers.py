@@ -1,28 +1,44 @@
 from fastapi import APIRouter, Depends, HTTPException
 from uuid import UUID
-import asyncpg
+import asyncio
 
-from app.core.database import get_db
+from supabase import Client
+
+from app.core.database import get_supabase
 from app.models.schemas import PublisherOut
 
 router = APIRouter()
 
 
+def _list_publishers(sb: Client, min_score: int) -> list[dict]:
+    r = (
+        sb.table("publishers")
+        .select("*")
+        .gte("score", min_score)
+        .order("score", desc=True)
+        .execute()
+    )
+    return r.data or []
+
+
 @router.get("/", response_model=list[PublisherOut])
 async def list_publishers(
     min_score: int = 0,
-    db: asyncpg.Connection = Depends(get_db),
+    sb: Client = Depends(get_supabase),
 ):
-    rows = await db.fetch(
-        "SELECT * FROM publishers WHERE score >= $1 ORDER BY score DESC",
-        min_score,
-    )
-    return [dict(r) for r in rows]
+    return await asyncio.to_thread(_list_publishers, sb, min_score)
+
+
+def _get_publisher(sb: Client, publisher_id: UUID) -> dict | None:
+    r = sb.table("publishers").select("*").eq("id", str(publisher_id)).limit(1).execute()
+    if not r.data:
+        return None
+    return r.data[0]
 
 
 @router.get("/{publisher_id}", response_model=PublisherOut)
-async def get_publisher(publisher_id: UUID, db: asyncpg.Connection = Depends(get_db)):
-    row = await db.fetchrow("SELECT * FROM publishers WHERE id = $1", publisher_id)
+async def get_publisher(publisher_id: UUID, sb: Client = Depends(get_supabase)):
+    row = await asyncio.to_thread(_get_publisher, sb, publisher_id)
     if not row:
         raise HTTPException(status_code=404, detail="Publisher not found")
-    return dict(row)
+    return row
