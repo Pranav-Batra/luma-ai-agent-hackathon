@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
 
-from app.api.routes import campaigns, publishers, recon, webhook
+from app.api.routes import campaigns, publishers, recon, webhook, ads
 from app.core.database import get_supabase
 
 
@@ -43,6 +43,7 @@ app.include_router(campaigns.router, prefix="/api/campaigns", tags=["campaigns"]
 app.include_router(publishers.router, prefix="/api/publishers", tags=["publishers"])
 app.include_router(recon.router, prefix="/api/recon", tags=["recon"])
 app.include_router(webhook.router, prefix="/api/webhook", tags=["webhook"])
+app.include_router(ads.router, prefix="/api/ads", tags=["ads"])
 
 
 @app.get("/health")
