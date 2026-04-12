@@ -258,6 +258,23 @@ def _event_ts(row: dict) -> str:
     return t.isoformat()
 
 
+def _serialize_event(row: dict) -> dict:
+    md = row.get("metadata") or {}
+    if isinstance(md, str):
+        try:
+            md = json.loads(md)
+        except json.JSONDecodeError:
+            md = {}
+    return {
+        "id": str(row["id"]),
+        "campaign_id": str(row.get("campaign_id", "")),
+        "event_type": row["event_type"],
+        "message": row["message"],
+        "metadata": md,
+        "created_at": _event_ts(row),
+    }
+
+
 def _fetch_events(sb: Client, campaign_id: UUID, last_id: str | None) -> list[dict]:
     q = (
         sb.table("agent_events")
@@ -265,6 +282,14 @@ def _fetch_events(sb: Client, campaign_id: UUID, last_id: str | None) -> list[di
         .eq("campaign_id", str(campaign_id))
         .order("created_at", desc=False)
     )
+    if last_id:
+        q = q.gt("id", last_id)
+    r = q.execute()
+    return r.data or []
+
+
+def _fetch_all_events(sb: Client, last_id: str | None) -> list[dict]:
+    q = sb.table("agent_events").select("*").order("created_at", desc=False)
     if last_id:
         q = q.gt("id", last_id)
     r = q.execute()
@@ -369,8 +394,7 @@ async def run_campaign(
 @router.get("/{campaign_id}/events")
 async def campaign_events_stream(campaign_id: UUID, sb: Client = Depends(get_supabase)):
     """
-    Server-Sent Events stream of agent_events for live dashboard feed.
-    Frontend connects once; new events push every 1.5 seconds.
+    Server-Sent Events stream of agent_events for a single campaign.
     """
     async def event_generator():
         last_id = None
@@ -378,19 +402,31 @@ async def campaign_events_stream(campaign_id: UUID, sb: Client = Depends(get_sup
             rows = await asyncio.to_thread(_fetch_events, sb, campaign_id, last_id)
             for row in rows:
                 last_id = row["id"]
-                md = row.get("metadata") or {}
-                if isinstance(md, str):
-                    try:
-                        md = json.loads(md)
-                    except json.JSONDecodeError:
-                        md = {}
-                data = json.dumps({
-                    "id": str(row["id"]),
-                    "event_type": row["event_type"],
-                    "message": row["message"],
-                    "metadata": md,
-                    "created_at": _event_ts(row),
-                })
+                data = json.dumps(_serialize_event(row))
+                yield f"data: {data}\n\n"
+            await asyncio.sleep(1.5)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+# ── Global events (all campaigns) ─────────────────────────────────────────────
+
+events_router = APIRouter()
+
+
+@events_router.get("/")
+async def global_events_stream(sb: Client = Depends(get_supabase)):
+    """
+    Server-Sent Events stream of agent_events across ALL campaigns.
+    Used by the dashboard home page.
+    """
+    async def event_generator():
+        last_id = None
+        while True:
+            rows = await asyncio.to_thread(_fetch_all_events, sb, last_id)
+            for row in rows:
+                last_id = row["id"]
+                data = json.dumps(_serialize_event(row))
                 yield f"data: {data}\n\n"
             await asyncio.sleep(1.5)
 

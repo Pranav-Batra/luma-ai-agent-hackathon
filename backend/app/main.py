@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 import asyncio
 
 from app.api.routes import campaigns, publishers, recon, webhook, ads
+from app.api.routes.campaigns import events_router
 from app.core.database import get_supabase
 
 
@@ -44,6 +45,7 @@ app.include_router(publishers.router, prefix="/api/publishers", tags=["publisher
 app.include_router(recon.router, prefix="/api/recon", tags=["recon"])
 app.include_router(webhook.router, prefix="/api/webhook", tags=["webhook"])
 app.include_router(ads.router, prefix="/api/ads", tags=["ads"])
+app.include_router(events_router, prefix="/api/events", tags=["events"])
 
 
 @app.get("/health")

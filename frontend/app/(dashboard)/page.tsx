@@ -124,11 +124,11 @@ export default async function DashboardPage() {
 
       <Panel
         title="Live optimization feed"
-        description="Real agent events stream here for the current running campaign when the backend has stored activity."
+        description="Agent events across all campaigns stream here in real time."
       >
         <LiveFeedPanel
-          key={activeCampaign?.id ?? "no-active-campaign"}
-          campaignId={activeCampaign?.id}
+          key="global-feed"
+          global
           initialEvents={[]}
         />
       </Panel>

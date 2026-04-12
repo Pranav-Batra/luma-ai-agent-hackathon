@@ -37,6 +37,10 @@ export function getCampaignEventsUrl(campaignId: string) {
   return `${API_BASE_URL}/api/campaigns/${campaignId}/events`;
 }
 
+export function getGlobalEventsUrl() {
+  return `${API_BASE_URL}/api/events/`;
+}
+
 export function getApiBaseUrl() {
   return API_BASE_URL;
 }
