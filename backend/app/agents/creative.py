@@ -506,7 +506,7 @@ Paste this HTML where the slot should run:
 — Alex, Media Buying Agent
 """
         subject = f"Re: {outreach_row.get('email_subject') or 'Ad placement'} — creative + tag"
-
+        print(f'DELIVERY: {delivery}')
         try:
             await asyncio.to_thread(_send_smtp, to, subject, delivery)
             await asyncio.to_thread(
