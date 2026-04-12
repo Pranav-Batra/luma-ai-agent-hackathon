@@ -11,10 +11,10 @@ export default async function PublisherIntelligencePage() {
       <section className="rounded-[32px] bg-surface-panel p-8 ring-1 ring-white/6">
         <SectionEyebrow>Publisher reconnaissance</SectionEyebrow>
         <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white">
-          Autonomous crawler analyzing domain quality and ad-inventory density
+          Review publisher quality and run fresh recon
         </h1>
         <p className="mt-4 max-w-4xl text-base leading-7 text-slate-300">
-          This route is partially real-data backed today through the publishers and recon API endpoints.
+          Browse known publishers from the backend and launch new recon jobs against specific URLs.
         </p>
       </section>
 

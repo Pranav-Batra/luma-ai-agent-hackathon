@@ -4,7 +4,6 @@ import {
   formatCompact,
   formatCurrency,
   mockCampaigns,
-  mockLiveFeed,
 } from "@/lib/dashboard-data";
 import { getCampaign } from "@/lib/api";
 
@@ -66,7 +65,7 @@ export default async function CampaignDetailPage({
         </Panel>
 
         <Panel title="Live event stream" description="Uses SSE when the backend can stream campaign events.">
-          <LiveFeedPanel campaignId={campaign.id} initialEvents={mockLiveFeed} />
+          <LiveFeedPanel key={campaign.id} campaignId={campaign.id} initialEvents={[]} />
         </Panel>
       </div>
 

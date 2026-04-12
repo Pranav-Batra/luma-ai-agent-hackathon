@@ -63,7 +63,7 @@ export function LiveFeedPanel({
       return "Listening for live events";
     }
 
-    return "Showing seeded activity";
+    return "Waiting for an active campaign";
   }, [campaignId, isConnected]);
 
   return (
@@ -85,17 +85,32 @@ export function LiveFeedPanel({
       </div>
 
       <div className="mt-5 space-y-3">
-        {events.map((event) => (
-          <div key={event.id} className="rounded-[20px] bg-surface-low px-4 py-3 ring-1 ring-white/5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs uppercase tracking-[0.18em] text-secondary">
-                {event.event_type.replaceAll("_", " ")}
-              </p>
-              <p className="text-xs text-slate-400">{formatEventTime(event.created_at)}</p>
+        {events.length > 0 ? (
+          events.map((event) => (
+            <div key={event.id} className="rounded-[20px] bg-surface-low px-4 py-3 ring-1 ring-white/5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-secondary">
+                  {event.event_type.replaceAll("_", " ")}
+                </p>
+                <p className="text-xs text-slate-400">{formatEventTime(event.created_at)}</p>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-100">{event.message}</p>
             </div>
-            <p className="mt-2 text-sm leading-6 text-slate-100">{event.message}</p>
+          ))
+        ) : (
+          <div className="rounded-[20px] bg-surface-low px-4 py-5 ring-1 ring-white/5">
+            <p className="text-sm text-slate-200">
+              {campaignId
+                ? "No agent events yet for this campaign."
+                : "No running campaign selected yet."}
+            </p>
+            <p className="mt-2 text-sm text-slate-400">
+              {campaignId
+                ? "New entries will appear here as soon as the backend records them."
+                : "Start or select a campaign to stream live optimization events."}
+            </p>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

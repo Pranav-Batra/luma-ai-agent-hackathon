@@ -37,9 +37,9 @@ describe("DashboardNav", () => {
     render(<DashboardNav />);
 
     const campaignsLink = screen.getByRole("link", { name: /campaigns/i });
-    const analyticsLink = screen.getByRole("link", { name: /analytics/i });
+    const publisherReconLink = screen.getByRole("link", { name: /publisher recon/i });
 
     expect(campaignsLink.className).toContain("bg-[linear-gradient");
-    expect(analyticsLink.className).toContain("hover:bg-white/5");
+    expect(publisherReconLink.className).toContain("hover:bg-white/5");
   });
 });

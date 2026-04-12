@@ -6,7 +6,6 @@ import {
   formatCompact,
   formatCurrency,
   mockCampaigns,
-  mockLiveFeed,
 } from "@/lib/dashboard-data";
 import { getCampaigns } from "@/lib/api";
 
@@ -26,11 +25,11 @@ export default async function DashboardPage() {
         <div className="mt-4 flex flex-wrap items-start justify-between gap-6">
           <div className="max-w-3xl">
             <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-              Operational overview for autonomous media streams
+              Campaign and recon overview
             </h1>
             <p className="mt-4 text-base leading-7 text-slate-300">
-              Stitch screens are now grounded in the Luma backend with live campaign, recon,
-              and agent feed surfaces.
+              Track active campaigns, jump into publisher recon, and watch live agent events from
+              the current running campaign.
             </p>
           </div>
           <Link
@@ -125,9 +124,13 @@ export default async function DashboardPage() {
 
       <Panel
         title="Live optimization feed"
-        description="SSE-backed events appear here when the backend has a running campaign and stored agent events."
+        description="Real agent events stream here for the current running campaign when the backend has stored activity."
       >
-        <LiveFeedPanel campaignId={activeCampaign?.id} initialEvents={mockLiveFeed} />
+        <LiveFeedPanel
+          key={activeCampaign?.id ?? "no-active-campaign"}
+          campaignId={activeCampaign?.id}
+          initialEvents={[]}
+        />
       </Panel>
     </div>
   );

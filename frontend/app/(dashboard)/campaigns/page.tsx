@@ -14,11 +14,10 @@ export default async function CampaignsPage() {
         <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-4xl font-semibold tracking-tight text-white">
-              Direct control over autonomous deployment
+              Campaign control plane
             </h1>
             <p className="mt-3 max-w-3xl text-base leading-7 text-slate-300">
-              This view is connected to the backend campaign routes and falls back to seeded data when
-              the API is unavailable.
+              Review campaign status, spend, and audience details from the backend campaign API.
             </p>
           </div>
           <Link
@@ -32,7 +31,7 @@ export default async function CampaignsPage() {
 
       <Panel
         title="Campaign roster"
-        description={`Showing ${campaigns.length} campaign records from FastAPI or local seed data.`}
+        description={`Showing ${campaigns.length} campaign records from the campaign service or local fallback data.`}
       >
         <div className="grid gap-4">
           {campaigns.map((campaign) => (

@@ -7,12 +7,7 @@ const links = [
   { href: "/", label: "Dashboard" },
   { href: "/campaigns", label: "Campaigns" },
   { href: "/campaigns/new", label: "Create" },
-  { href: "/analytics", label: "Analytics" },
   { href: "/publisher-intelligence", label: "Publisher Recon" },
-  { href: "/network-map", label: "Network Map" },
-  { href: "/settings", label: "Settings" },
-  { href: "/audit-logs", label: "Audit Logs" },
-  { href: "/profile", label: "Profile" },
 ];
 
 function isActive(pathname: string, href: string) {
