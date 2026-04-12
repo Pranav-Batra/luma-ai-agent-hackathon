@@ -268,6 +268,7 @@ import uuid
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timezone
+from urllib.parse import quote
 from app.agents.helper import extract_json
 
 import httpx
@@ -287,6 +288,19 @@ PUBLIC_API_BASE = os.environ.get("PUBLIC_API_BASE", "http://127.0.0.1:8000").rst
 PLACEHOLDER_IMAGE = os.environ.get(
     "AD_PLACEHOLDER_IMAGE_URL",
     "https://placehold.co/300x250/1a1a2e/eeeeee?text=300x250+Ad",
+)
+
+# Free display-ad images: Pollinations public image URL (no API key).
+# The URL embeds the prompt; the server returns a JPEG when the image is requested.
+# See https://pollinations.ai — we use the classic image.pollinations.ai/prompt/... endpoint.
+POLLINATIONS_IMAGE_BASE = os.environ.get(
+    "POLLINATIONS_IMAGE_BASE",
+    "https://image.pollinations.ai/prompt",
+)
+AD_USE_POLLINATIONS_IMAGE = os.environ.get("AD_USE_POLLINATIONS_IMAGE", "true").lower() in (
+    "1",
+    "true",
+    "yes",
 )
 
 CREATIVE_SYSTEM = """
@@ -345,6 +359,89 @@ Deal value: ${offer_amount}
     text = data["choices"][0]["message"]["content"].strip()
     print("MODEL TEXT:", text)
     return extract_json(text)
+
+
+# ── Banner image (Pollinations — free, no API key) ───────────────────────────
+
+def _build_visual_prompt_for_image(
+    client_name: str,
+    product_desc: str,
+    headline: str,
+    subheadline: str | None,
+    cta: str | None,
+    publisher_url: str,
+    trending: str,
+) -> str:
+    """Describe the *visual* for the banner; avoid tiny text (copy lives in the email)."""
+    sub = f" {subheadline}" if subheadline else ""
+    cta_p = f" Call to action mood: {cta}." if cta else ""
+    return (
+        f"Professional 300x250 style web display advertisement, wide banner composition, "
+        f"brand {client_name}, product {product_desc}, theme {headline}.{sub}{cta_p} "
+        f"Publisher context {publisher_url}, trending {trending}. "
+        f"Bold colors, high contrast, modern commercial layout, no small illegible text, "
+        f"no watermarks, sharp focus."
+    )[:1500]
+
+
+def build_pollinations_ad_image_url(
+    *,
+    client_name: str,
+    product_desc: str,
+    headline: str,
+    subheadline: str | None,
+    cta: str | None,
+    publisher_url: str,
+    trending_headline: str,
+) -> str | None:
+    """
+    Returns a Pollinations image URL, or None if disabled / empty prompt.
+    No API key: the service generates from the URL path when the image is fetched.
+    """
+    if not AD_USE_POLLINATIONS_IMAGE:
+        return None
+    prompt = _build_visual_prompt_for_image(
+        client_name,
+        product_desc,
+        headline,
+        subheadline,
+        cta,
+        publisher_url,
+        trending_headline,
+    ).strip()
+    if not prompt:
+        return None
+    # Path segment must be percent-encoded; safe='' so spaces become %20.
+    encoded = quote(prompt, safe="")
+    return f"{POLLINATIONS_IMAGE_BASE.rstrip('/')}/{encoded}"
+
+
+def resolve_ad_image_url(
+    *,
+    client_name: str,
+    product_desc: str,
+    headline: str,
+    subheadline: str | None,
+    cta: str | None,
+    publisher_url: str,
+    trending_headline: str,
+) -> tuple[str, bool]:
+    """
+    (image_url, used_pollinations). Falls back to PLACEHOLDER_IMAGE if Pollinations is off
+    or URL could not be built.
+    """
+    url = build_pollinations_ad_image_url(
+        client_name=client_name,
+        product_desc=product_desc,
+        headline=headline,
+        subheadline=subheadline,
+        cta=cta,
+        publisher_url=publisher_url,
+        trending_headline=trending_headline,
+    )
+    if url:
+        return url, True
+    return PLACEHOLDER_IMAGE, False
 
 
 # ── Email ─────────────────────────────────────────────────────────────────────
@@ -453,6 +550,16 @@ async def run_approved_pipeline(sb: Client, outreach_row: dict) -> dict | None:
         offer_amount=offer_amount,
     )
 
+    image_url, image_from_pollinations = resolve_ad_image_url(
+        client_name=campaign["client_name"],
+        product_desc=campaign["product_desc"],
+        headline=copy["headline"],
+        subheadline=copy.get("subheadline"),
+        cta=copy.get("cta"),
+        publisher_url=publisher["url"],
+        trending_headline=trending,
+    )
+
     # Persist creative to DB
     creative = await asyncio.to_thread(
         insert_ad_creative,
@@ -462,7 +569,7 @@ async def run_approved_pipeline(sb: Client, outreach_row: dict) -> dict | None:
         copy["headline"],
         copy.get("subheadline"),
         copy.get("cta"),
-        PLACEHOLDER_IMAGE,
+        image_url,
     )
 
     # Update campaign spend
@@ -470,6 +577,11 @@ async def run_approved_pipeline(sb: Client, outreach_row: dict) -> dict | None:
 
     click_url = f"{PUBLIC_API_BASE}/api/ads/{creative['click_track_id']}/click"
     img = creative.get("image_url") or PLACEHOLDER_IMAGE
+    image_line = (
+        f"Image (AI-generated, Pollinations — free, no key): {img}"
+        if image_from_pollinations
+        else f"Image (placeholder): {img}"
+    )
 
     # Log agent event
     await asyncio.to_thread(
@@ -481,6 +593,7 @@ async def run_approved_pipeline(sb: Client, outreach_row: dict) -> dict | None:
             "ad_creative_id": creative["id"],
             "click_track_id": creative["click_track_id"],
             "headline": copy["headline"],
+            "image_provider": "pollinations" if image_from_pollinations else "placeholder",
         },
     )
 
@@ -497,7 +610,7 @@ Headline: {copy['headline']}
 {subheadline_line}
 {cta_line}
 
-Image (placeholder): {img}
+{image_line}
 Click-through URL (tracks clicks): {click_url}
 
 Paste this HTML where the slot should run:
