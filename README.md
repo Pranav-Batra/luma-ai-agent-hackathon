@@ -254,23 +254,3 @@ vercel --prod
 Set `NEXT_PUBLIC_API_BASE_URL` to your Railway domain in Vercel → Settings → Environment Variables. Redeploy after adding.
 
 ---
-
-## Demo Flow
-
-1. **Create a campaign** via the dashboard (client name, product, budget, seed URLs)
-2. **Run the campaign** — agent reconnoiters seed URLs, scores publishers, sends pitch emails
-3. **Watch the live feed** — SSE stream shows every agent action in real time
-4. **Reply "Approved"** from the dummy publisher Gmail inbox
-5. **Agent detects the reply** via Gmail poller → classifies as "approved"
-6. **Creative pipeline fires** — Claude writes headline/CTA, generates banner, sends delivery email with ad tag
-7. **Dashboard shows** spend, impressions, and 8× CPM improvement vs AdSense
-
----
-
-## Key Demo Talking Points
-
-- **Fully autonomous** — zero human intervention after campaign creation
-- **Hyper-contextual** — ad copy is generated based on the publisher's trending articles
-- **Direct deals** — bypasses Google/Facebook entirely, negotiates directly with publishers
-- **Cost efficient** — targets remnant inventory at $0.50 CPM vs Google AdSense's $4.00 effective rate
-- **Real emails** — judges see actual emails hitting real inboxes and triggering the agent
