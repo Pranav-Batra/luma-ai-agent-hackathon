@@ -10,6 +10,7 @@ import {
 import { getCampaigns } from "@/lib/api";
 
 export default async function DashboardPage() {
+  console.log('API URL:', process.env.NEXT_PUBLIC_API_BASE_URL)
   const campaigns = (await getCampaigns()) ?? mockCampaigns;
   const activeCampaign = campaigns.find((campaign) => campaign.status === "running") ?? campaigns[0];
   const totalSpend = campaigns.reduce((sum, campaign) => sum + campaign.spend, 0);
