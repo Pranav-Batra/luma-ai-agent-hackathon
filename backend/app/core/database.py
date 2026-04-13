@@ -5,6 +5,11 @@ from supabase import Client, create_client
 
 load_dotenv()
 
+url = os.environ.get("SUPABASE_URL", "NOT_SET")
+key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "NOT_SET")
+print(f"SUPABASE_URL={url}")
+print(f"KEY_LENGTH={len(key)}")
+print(f"KEY_START={key[:10]}")
 
 @lru_cache
 def get_supabase() -> Client:

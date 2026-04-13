@@ -17,7 +17,7 @@ PREMIUM_DSPS = {"tradedesk", "dv360", "doubleclick", "xandr", "pubmatic", "appne
 DEMO_PUBLISHERS = {
     "dev.to": {
         "ad_networks": ["Carbon Ads", "AdSense"],
-        "contact_email": "ads@dev.to",
+        "contact_email": "batra2006.analytics@gmail.com",
         "estimated_traffic": "80k/day",
         "has_adsense": True,
         "has_premium_dsp": False,
@@ -29,7 +29,7 @@ DEMO_PUBLISHERS = {
     },
     "lobste.rs": {
         "ad_networks": ["AdSense"],
-        "contact_email": "ads@lobste.rs",
+        "contact_email": "batra2006.analytics@gmail.com",
         "estimated_traffic": "30k/day",
         "has_adsense": True,
         "has_premium_dsp": False,
@@ -41,7 +41,7 @@ DEMO_PUBLISHERS = {
     },
     "hackernoon.com": {
         "ad_networks": ["AdSense", "Carbon"],
-        "contact_email": "sponsor@hackernoon.com",
+        "contact_email": "batra2006.analytics@gmail.com",
         "estimated_traffic": "120k/day",
         "has_adsense": True,
         "has_premium_dsp": False,

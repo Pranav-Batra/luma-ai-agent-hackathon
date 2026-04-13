@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  --background: #060e20;
+  --foreground: #dee5ff;
+  --surface-low: #091328;
+  --surface-panel: #0f1930;
+  --surface-elevated: #141f38;
+  --surface-bright: #1f2b49;
+  --primary: #ba9eff;
+  --primary-dim: #8455ef;
+  --secondary: #53ddfc;
+  --tertiary: #9bffce;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface-low: var(--surface-low);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-bright: var(--surface-bright);
+  --color-primary: var(--primary);
+  --color-primary-dim: var(--primary-dim);
+  --color-secondary: var(--secondary);
+  --color-tertiary: var(--tertiary);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), sans-serif;
+  background-image:
+    radial-gradient(circle at top left, rgba(83, 221, 252, 0.16), transparent 28%),
+    radial-gradient(circle at top right, rgba(186, 158, 255, 0.14), transparent 34%),
+    linear-gradient(180deg, #060e20, #091328 55%, #060e20);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: rgba(186, 158, 255, 0.3);
+  color: white;
+}

@@ -1,4 +1,5 @@
 """
+THIS IS OUTREACH STEP ONE -> AGENT SENDS PITCH EMAIL TO PUBLISHER ASKING FOR APPROVAL
 Outreach Agent
 Flow: campaign + publisher → Claude writes pitch email → Resend sends it
       → log to outreach_logs → log agent_event for dashboard stream
@@ -7,16 +8,28 @@ Flow: campaign + publisher → Claude writes pitch email → Resend sends it
 import os
 import json
 import asyncio
+import httpx
 import anthropic
 from uuid import UUID
+from uuid import uuid4
+import re
+import smtplib
+from email.message import EmailMessage
+from dotenv import load_dotenv
+from app.agents.helper import extract_json
 
-import resend
+load_dotenv()
+
+
 from supabase import Client
 
-resend.api_key = os.environ.get("RESEND_API_KEY")
-claude = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+# claude = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "agent@yourdomain.com")
+GMAIL_USER = os.environ.get("GMAIL_USER")  # your_email@gmail.com
+GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD")  # app password
+INBOX_EMAIL="batra2006.analytics@gmail.com"
 
 PITCH_SYSTEM_PROMPT = """
 You are a direct media buyer writing cold outreach emails to website ad-ops managers.
@@ -38,6 +51,7 @@ Respond with ONLY a JSON object, no markdown:
 """
 
 
+
 async def generate_pitch(
     publisher_url: str,
     trending_headline: str,
@@ -55,14 +69,35 @@ Product: {client_desc}
 Target audience: {audience}
 Offer amount: ${offer_amount} for a 300x250 banner slot (30 days)
 """
-    msg = await claude.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=500,
-        system=PITCH_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_prompt}],
-    )
-    text = msg.content[0].text.strip()
-    return json.loads(text)
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            OPENROUTER_URL,
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "anthropic/claude-3.5-haiku",  # or newer if available
+                "messages": [
+                    {"role": "system", "content": PITCH_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "max_tokens": 500,
+            },
+        )
+
+    data = res.json()
+
+    print("OPENROUTER RAW RESPONSE:", data)
+
+
+    # Debug if needed
+    if "error" in data:
+        raise RuntimeError(f"OpenRouter error: {data['error']}")
+
+    text = data["choices"][0]["message"]["content"].strip()
+    print("MODEL TEXT:", text)
+    return extract_json(text)
 
 
 def _fetch_campaign(sb: Client, campaign_id: str) -> dict:
@@ -128,7 +163,19 @@ def _get_top_publishers(sb: Client, campaign_id: str, max_publishers: int) -> li
 def _update_campaign_status(sb: Client, campaign_id: str, status: str) -> None:
     sb.table("campaigns").update({"status": status}).eq("id", campaign_id).execute()
 
+def send_email_smtp(subject: str, body: str, to_email: str) -> str:
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = GMAIL_USER
+    msg["To"] = to_email
+    msg.set_content(body)
 
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+        smtp.send_message(msg)
+
+    return "smtp-" + str(uuid4())  # fake ID for logging
+    
 async def send_outreach(
     sb: Client,
     campaign_id: str,
@@ -153,13 +200,22 @@ async def send_outreach(
         offer_amount=offer_amount,
     )
 
-    response = resend.Emails.send({
-        "from": FROM_EMAIL,
-        "to": publisher["contact_email"],
-        "subject": pitch["subject"],
-        "text": pitch["body"],
-    })
-    resend_id = response.get("id")
+    resend_id = send_email_smtp(
+        subject=pitch['subject'], 
+        body=pitch['body'],
+        to_email=INBOX_EMAIL
+    )
+
+    # response = resend.Emails.send({
+    #     "from": FROM_EMAIL,
+    #     "to": "pokihi8550@lealking.com", ##temporary email that acts on behalf of all publishers
+    #     # "to": publisher["contact_email"],
+    #     "subject": pitch["subject"],
+    #     "text": pitch["body"],
+    # })
+    # resend_id = response.get("id")
+
+
 
     outreach = await asyncio.to_thread(
         _log_outreach, sb, campaign_id, publisher_id,
